@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Productivity Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="mode-focus">
+    <div class="app-shell">
+        <header class="topbar glass-card">
+            <div>
+                <p class="eyebrow">Focus Console</p>
+                <h1>Productivity Dashboard</h1>
+            </div>
+            <div class="topbar-actions">
+                <button id="theme-toggle" class="ghost-btn" type="button">Light Mode</button>
+                <button id="fullscreen-btn" class="ghost-btn" type="button">Fullscreen</button>
+            </div>
+        </header>
+
+        <main class="dashboard-grid">
+            <aside class="left-column">
+                <section class="glass-card panel calendar-panel">
+                    <div class="panel-head">
+                        <h2>Calendar</h2>
+                        <div class="calendar-nav">
+                            <button id="prev-month" type="button" aria-label="Previous month">&lt;</button>
+                            <h3 id="month-year">Month Year</h3>
+                            <button id="next-month" type="button" aria-label="Next month">&gt;</button>
+                        </div>
+                    </div>
+                    <div class="calendar-grid" id="calendar-grid">
+                        <div class="day-name">Sun</div>
+                        <div class="day-name">Mon</div>
+                        <div class="day-name">Tue</div>
+                        <div class="day-name">Wed</div>
+                        <div class="day-name">Thu</div>
+                        <div class="day-name">Fri</div>
+                        <div class="day-name">Sat</div>
+                    </div>
+                    <div id="selected-date-stats" class="date-stats hidden">
+                        <h4 id="selected-date-title">Date</h4>
+                        <p>Sessions: <span id="selected-date-sessions">0</span></p>
+                        <p>Focus Time: <span id="selected-date-time">0m</span></p>
+                    </div>
+                </section>
+
+                <section class="glass-card panel music-panel">
+                    <div class="panel-head compact">
+                        <h2>Spotify Mode</h2>
+                    </div>
+
+                    <div class="music-display">
+                        <div id="music-cover" class="music-cover cover-focus1" aria-hidden="true"></div>
+                        <div class="music-meta">
+                            <p class="music-chip">Now Playing</p>
+                            <p id="music-track-name" class="music-track-name">Focus 1</p>
+                            <p id="music-artist" class="muted">Deep Work Tones</p>
+                            <p id="music-status" class="muted">Paused</p>
+                        </div>
+                    </div>
+
+                    <div class="music-controls">
+                        <button id="music-prev" class="ghost-btn" type="button" aria-label="Previous track">⏮</button>
+                        <button id="music-toggle" class="primary-btn" type="button" aria-label="Play or pause">▶</button>
+                        <button id="music-next" class="ghost-btn" type="button" aria-label="Next track">⏭</button>
+                    </div>
+
+                    <div class="music-progress-wrap">
+                        <div class="music-times">
+                            <span id="music-current-time">0:00</span>
+                            <span id="music-total-time">0:00</span>
+                        </div>
+                        <input id="music-seek" type="range" min="0" max="100" value="0" step="0.1" aria-label="Seek track">
+                        <div id="music-progress-track" class="music-progress-track" aria-hidden="true">
+                            <div id="music-progress-bar" class="music-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="music-adjust-row volume-row">
+                        <label for="music-volume" class="muted">Volume</label>
+                        <button id="music-mute" class="ghost-btn music-mute-btn" type="button" aria-label="Mute or unmute">🔊</button>
+                        <input id="music-volume" type="range" min="0" max="1" value="0.7" step="0.01">
+                        <span id="music-volume-text" class="muted">70%</span>
+                    </div>
+
+                    <p id="music-error" class="music-error hidden" role="status" aria-live="polite"></p>
+                </section>
+            </aside>
+
+            <section class="center-column glass-card panel timer-panel">
+                <div class="mode-selector">
+                    <button class="mode-btn active" data-mode="focus" type="button">Focus</button>
+                    <button class="mode-btn" data-mode="shortBreak" type="button">Short Break</button>
+                    <button class="mode-btn" data-mode="longBreak" type="button">Long Break</button>
+                </div>
+
+                <div class="timer-display">
+                    <div class="progress-ring">
+                        <svg width="320" height="320" viewBox="0 0 320 320" aria-hidden="true">
+                            <defs>
+                                <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop id="ring-stop-start" offset="0%" stop-color="#ff8f85"></stop>
+                                    <stop id="ring-stop-end" offset="100%" stop-color="#ff4f63"></stop>
+                                </linearGradient>
+                            </defs>
+                            <circle class="progress-ring__circle-bg" stroke="currentColor" stroke-width="10" fill="transparent" r="145" cx="160" cy="160"></circle>
+                            <circle class="progress-ring__circle" stroke="url(#timerGradient)" stroke-width="12" stroke-linecap="round" fill="transparent" r="145" cx="160" cy="160"></circle>
+                        </svg>
+                        <div class="timer-stack">
+                            <p id="current-mode-label" class="mode-label">Focus Session</p>
+                            <div id="time" class="time-text">25:00</div>
+                            <p id="quote" class="quote">Ship one focused block right now.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button id="start-pause-btn" class="primary-btn" type="button">Start</button>
+                    <button id="reset-btn" class="ghost-btn" type="button">Reset</button>
+                </div>
+
+                <div class="timer-meta">
+                    <p>Session Count: <span id="current-session-count">0</span>/<span id="sessions-before-long">4</span></p>
+                    <p>Spacebar toggles start/pause</p>
+                </div>
+            </section>
+
+            <aside class="right-column">
+                <section class="glass-card panel settings-panel">
+                    <div class="panel-head compact">
+                        <h2>Settings</h2>
+                    </div>
+                    <div class="settings-grid">
+                        <label for="focus-duration">Focus (min)</label>
+                        <input type="number" id="focus-duration" min="1" max="120" value="25">
+
+                        <label for="short-break-duration">Short Break</label>
+                        <input type="number" id="short-break-duration" min="1" max="60" value="5">
+
+                        <label for="long-break-duration">Long Break</label>
+                        <input type="number" id="long-break-duration" min="1" max="120" value="15">
+
+                        <label for="sessions-count">Cycle Size</label>
+                        <input type="number" id="sessions-count" min="1" max="12" value="4">
+
+                        <label for="sound-toggle">Sound</label>
+                        <input type="checkbox" id="sound-toggle" checked>
+
+                        <label for="theme-setting-toggle">Light Theme</label>
+                        <input type="checkbox" id="theme-setting-toggle">
+
+                        <label for="alarm-sound">Alarm</label>
+                        <select id="alarm-sound">
+                            <option value="bell">Bell</option>
+                            <option value="chime">Chime</option>
+                            <option value="buzzer">Buzzer</option>
+                        </select>
+                    </div>
+                    <div class="settings-actions">
+                        <button id="test-sound-btn" class="ghost-btn" type="button">Test Sound</button>
+                        <button id="save-settings-btn" class="primary-btn" type="button">Save</button>
+                    </div>
+                </section>
+
+                <section class="glass-card panel notes-panel">
+                    <div class="panel-head compact notes-head">
+                        <h2>Sticky Notes</h2>
+                        <button id="add-note-btn" class="ghost-btn" type="button">Add</button>
+                    </div>
+                    <div id="notes-list" class="notes-list"></div>
+                </section>
+            </aside>
+
+            <section class="bottom-row glass-card panel insights-panel">
+                <div class="insights-head">
+                    <h2>Insights</h2>
+                    <p id="insight-quote">Rest is productive when it protects your focus.</p>
+                </div>
+                <div class="stats-cards">
+                    <article class="stat-card">
+                        <h3 id="today-sessions">0</h3>
+                        <p>Today's Sessions</p>
+                    </article>
+                    <article class="stat-card">
+                        <h3 id="weekly-sessions">0</h3>
+                        <p>Weekly Sessions</p>
+                    </article>
+                    <article class="stat-card">
+                        <h3 id="total-focus-time">0h 0m</h3>
+                        <p>Total Focus Time</p>
+                    </article>
+                </div>
+                <div class="weekly-chart-wrap">
+                    <h3>Last 7 Days</h3>
+                    <div id="weekly-chart" class="weekly-chart"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <audio id="alarm-audio" preload="auto"></audio>
+
+    <script src="script.js"></script>
+</body>
+</html>
