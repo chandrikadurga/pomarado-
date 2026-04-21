@@ -106,11 +106,14 @@ Open [index.html](index.html) in a browser after setting Supabase keys.
 Run this in browser console:
 
 window.AppDB.getCurrentUser();
+window.testInsert();
 window.AppDB.debugLoadStats();
 
 If USER is null, auth session is not established.
 
 If DB ERROR mentions row-level security, verify policies are present and active.
+
+If test insert fails with RLS, re-run policies from Section 3 and make sure `auth.uid() = user_id` is used for insert/select/update.
 
 If you see "Could not find the table 'public.user_stats' in the schema cache":
 
@@ -121,4 +124,5 @@ If you see "Could not find the table 'public.user_stats' in the schema cache":
 Also verify table schema:
 
 - user_stats.user_id must be uuid
+- user_stats stores totals in `total_sessions` and `total_focus_minutes` (not `sessions` / `focus_time` columns)
 - tasks.user_id must be uuid

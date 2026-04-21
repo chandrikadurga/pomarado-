@@ -54,8 +54,8 @@
             if (!appState.currentUserId) {
                 return;
             }
-            saveOperation().catch(function () {
-                // Swallow transient network errors; next write will retry latest state.
+            saveOperation().catch(function (error) {
+                console.error("[Cloud] Persist failed:", error);
             });
         }
 

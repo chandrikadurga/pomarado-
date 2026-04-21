@@ -69,8 +69,19 @@
             || text.includes("relation") && text.includes("does not exist");
     }
 
+    function isSchemaMismatchMessage(message) {
+        const text = String(message || "").toLowerCase();
+        return text.includes("column") && text.includes("does not exist")
+            || text.includes("invalid input syntax for type json")
+            || text.includes("violates not-null constraint");
+    }
+
     function getSetupMessage() {
         return "Supabase tables are missing. Create public.user_stats and public.tasks using the SQL in README, then retry login.";
+    }
+
+    function getSchemaMismatchMessage() {
+        return "Supabase schema mismatch. Use the exact SQL from README Section 2 for public.user_stats/public.tasks, then retry login.";
     }
 
     const client = configValidationError
@@ -143,6 +154,10 @@
 
         if (isMissingTableMessage(message)) {
             return context + ": " + getSetupMessage();
+        }
+
+        if (isSchemaMismatchMessage(message)) {
+            return context + ": " + getSchemaMismatchMessage();
         }
 
         if (lower.includes("row-level security") || lower.includes("permission denied") || lower.includes("not allowed")) {
@@ -243,17 +258,24 @@
                 setSetupWarning(getSetupMessage());
                 return getDefaultBundle();
             }
+            if (isSchemaMismatchMessage(message) || message.includes("Supabase schema mismatch")) {
+                setSetupWarning(getSchemaMismatchMessage());
+                return getDefaultBundle();
+            }
             throw error;
         }
     }
 
     async function updateStatsBlob(userId, patch) {
         const user = await requireUser(userId);
-        const payload = { ...patch, updated_at: new Date().toISOString() };
+        const payload = {
+            user_id: user.id,
+            ...patch,
+            updated_at: new Date().toISOString()
+        };
         const { error } = await client
             .from("user_stats")
-            .update(payload)
-            .eq("user_id", user.id);
+            .upsert(payload, { onConflict: "user_id" });
 
         if (error) {
             throw new Error(normalizeDbError(error, "user_stats update failed"));
@@ -315,6 +337,42 @@
         return { data: data, error: null };
     }
 
+    async function debugTestInsert() {
+        const user = await getCurrentUser();
+
+        if (!user) {
+            console.error("No user logged in");
+            return { data: null, error: "No user logged in" };
+        }
+
+        const dayKey = new Date().toISOString().slice(0, 10);
+        const payload = {
+            user_id: user.id,
+            total_sessions: 1,
+            total_focus_minutes: 25,
+            daily_stats: {
+                [dayKey]: {
+                    sessions: 1,
+                    focusMinutes: 25
+                }
+            },
+            updated_at: new Date().toISOString()
+        };
+
+        const { data, error } = await client
+            .from("user_stats")
+            .upsert(payload, { onConflict: "user_id" })
+            .select();
+
+        console.log("INSERT RESULT:", data, error);
+
+        if (error) {
+            return { data: null, error: normalizeDbError(error, "user_stats debug insert failed") };
+        }
+
+        return { data: data, error: null };
+    }
+
     window.AppDB = {
         client: client,
         config: {
@@ -329,6 +387,7 @@
         checkConnection: checkConnection,
         getCurrentUser: getCurrentUser,
         debugLoadStats: debugLoadStats,
+        debugTestInsert: debugTestInsert,
         loadUserBundle: loadUserBundle,
         saveSettings: function (userId, settings) {
             return updateStatsBlob(userId, { settings: settings });
@@ -360,4 +419,7 @@
             return replaceTasks(userId, tasks);
         }
     };
+
+    // Console shortcut for quick troubleshooting after login.
+    window.testInsert = debugTestInsert;
 })();
