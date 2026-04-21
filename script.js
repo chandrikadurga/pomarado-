@@ -36,7 +36,10 @@
         const keys = {
             settings: "dashboard.settings.v1",
             timerState: "dashboard.timerState.v1",
-            stats: "dashboard.stats.v1",
+            statsLegacy: "dashboard.stats.v1",
+            dailyStats: "dailyStats",
+            streakData: "streakData",
+            tasks: "tasks",
             notes: "dashboard.notes.v1",
             music: "dashboard.music.v1"
         };
@@ -87,14 +90,49 @@
                 set(keys.timerState, timerState);
             },
             loadStats: function () {
-                const stats = get(keys.stats, { daily: {} });
+                const stats = get(keys.dailyStats, get(keys.statsLegacy, { daily: {} }));
                 if (!stats || typeof stats !== "object" || !stats.daily || typeof stats.daily !== "object") {
                     return { daily: {} };
                 }
                 return stats;
             },
             saveStats: function (stats) {
-                set(keys.stats, stats);
+                set(keys.dailyStats, stats);
+            },
+            loadStreakData: function () {
+                const streak = get(keys.streakData, null);
+                if (!streak || typeof streak !== "object") {
+                    return {
+                        lastActiveDate: null,
+                        currentStreak: 0,
+                        bestStreak: 0
+                    };
+                }
+                return {
+                    lastActiveDate: typeof streak.lastActiveDate === "string" ? streak.lastActiveDate : null,
+                    currentStreak: Number.isFinite(streak.currentStreak) ? Math.max(0, streak.currentStreak) : 0,
+                    bestStreak: Number.isFinite(streak.bestStreak) ? Math.max(0, streak.bestStreak) : 0
+                };
+            },
+            saveStreakData: function (streakData) {
+                set(keys.streakData, streakData);
+            },
+            loadTasks: function () {
+                const tasks = get(keys.tasks, []);
+                return Array.isArray(tasks)
+                    ? tasks.filter(function (task) {
+                        return task && typeof task === "object" && typeof task.id === "string" && typeof task.text === "string";
+                    }).map(function (task) {
+                        return {
+                            id: task.id,
+                            text: task.text,
+                            completed: Boolean(task.completed)
+                        };
+                    })
+                    : [];
+            },
+            saveTasks: function (tasks) {
+                set(keys.tasks, tasks);
             },
             loadNotes: function () {
                 const notes = get(keys.notes, []);
@@ -164,7 +202,17 @@
         todaySessions: document.getElementById("today-sessions"),
         weeklySessions: document.getElementById("weekly-sessions"),
         totalFocusTime: document.getElementById("total-focus-time"),
+        currentStreak: document.getElementById("current-streak"),
+        bestStreak: document.getElementById("best-streak"),
         weeklyChart: document.getElementById("weekly-chart"),
+
+        taskForm: document.getElementById("task-form"),
+        taskInput: document.getElementById("task-input"),
+        taskList: document.getElementById("task-list"),
+        taskCompleteModal: document.getElementById("task-complete-modal"),
+        taskCompleteText: document.getElementById("task-complete-text"),
+        taskCompleteYes: document.getElementById("task-complete-yes"),
+        taskCompleteNo: document.getElementById("task-complete-no"),
 
         addNoteBtn: document.getElementById("add-note-btn"),
         notesList: document.getElementById("notes-list"),
@@ -265,6 +313,323 @@
             getTotalFocusMinutes: getTotalFocusMinutes,
             getWeeklySummary: getWeeklySummary,
             getStats: getStats
+        };
+    })();
+
+    /* Streak Module: tracks daily consistency and longest run. */
+    const StreakModule = (function () {
+        const streakState = StorageModule.loadStreakData();
+
+        function syncOnAppLoad() {
+            if (!streakState.lastActiveDate) {
+                persist();
+                return;
+            }
+
+            const todayKey = getDateKey(new Date());
+            if (streakState.lastActiveDate === todayKey) {
+                return;
+            }
+
+            const gap = getDayGap(streakState.lastActiveDate, todayKey);
+            if (gap > 1) {
+                streakState.currentStreak = 0;
+                persist();
+            }
+        }
+
+        function registerSessionCompletion(date) {
+            const todayKey = getDateKey(date);
+            if (streakState.lastActiveDate === todayKey) {
+                return { increased: false };
+            }
+
+            const previous = streakState.currentStreak;
+            if (!streakState.lastActiveDate) {
+                streakState.currentStreak = 1;
+            } else {
+                const gap = getDayGap(streakState.lastActiveDate, todayKey);
+                streakState.currentStreak = gap === 1 ? streakState.currentStreak + 1 : 1;
+            }
+
+            streakState.bestStreak = Math.max(streakState.bestStreak, streakState.currentStreak);
+            streakState.lastActiveDate = todayKey;
+            persist();
+            return { increased: streakState.currentStreak > previous };
+        }
+
+        function getState() {
+            return {
+                lastActiveDate: streakState.lastActiveDate,
+                currentStreak: streakState.currentStreak,
+                bestStreak: streakState.bestStreak
+            };
+        }
+
+        function persist() {
+            StorageModule.saveStreakData(streakState);
+        }
+
+        function getDayGap(fromKey, toKey) {
+            const fromDate = parseDateKey(fromKey);
+            const toDate = parseDateKey(toKey);
+            if (!fromDate || !toDate) {
+                return 999;
+            }
+
+            const diffMs = toDate.getTime() - fromDate.getTime();
+            return Math.floor(diffMs / (24 * 60 * 60 * 1000));
+        }
+
+        function parseDateKey(key) {
+            if (typeof key !== "string") {
+                return null;
+            }
+            const parts = key.split("-").map(function (piece) {
+                return Number(piece);
+            });
+            if (parts.length !== 3 || parts.some(function (n) { return !Number.isFinite(n); })) {
+                return null;
+            }
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        }
+
+        return {
+            syncOnAppLoad: syncOnAppLoad,
+            registerSessionCompletion: registerSessionCompletion,
+            getState: getState
+        };
+    })();
+
+    /* Analytics Module: owns 7-day chart rendering metadata. */
+    const AnalyticsModule = (function () {
+        function getLastSevenDays() {
+            return StatsModule.getWeeklySummary();
+        }
+
+        function renderWeeklyChart(days) {
+            dom.weeklyChart.innerHTML = "";
+
+            const maxSessions = Math.max(1, days.reduce(function (max, day) {
+                return Math.max(max, day.sessions);
+            }, 0));
+
+            const todayKey = getDateKey(new Date());
+
+            days.forEach(function (day, index) {
+                const bar = document.createElement("div");
+                bar.className = "chart-bar";
+                if (day.key === todayKey) {
+                    bar.classList.add("is-today");
+                }
+
+                const pill = document.createElement("div");
+                pill.className = "chart-pill";
+                pill.style.setProperty("--bar-delay", String(index * 0.06) + "s");
+
+                const heightPercent = day.sessions === 0 ? 8 : Math.round((day.sessions / maxSessions) * 100);
+                pill.style.height = String(heightPercent) + "%";
+                pill.title = day.sessions + " sessions • " + formatMinutes(day.focusMinutes);
+
+                const value = document.createElement("span");
+                value.className = "chart-value";
+                value.textContent = String(day.sessions);
+
+                const label = document.createElement("span");
+                label.className = "chart-label";
+                label.textContent = day.label;
+
+                bar.appendChild(value);
+                bar.appendChild(pill);
+                bar.appendChild(label);
+                dom.weeklyChart.appendChild(bar);
+            });
+        }
+
+        return {
+            getLastSevenDays: getLastSevenDays,
+            renderWeeklyChart: renderWeeklyChart
+        };
+    })();
+
+    /* Tasks Module: persistent task CRUD and active-task selection. */
+    const TasksModule = (function () {
+        let tasks = StorageModule.loadTasks();
+        let activeTaskId = null;
+
+        function addTask(text) {
+            const cleaned = String(text || "").trim();
+            if (!cleaned) {
+                return false;
+            }
+
+            const task = {
+                id: "task-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
+                text: cleaned,
+                completed: false
+            };
+            tasks.unshift(task);
+
+            if (!activeTaskId) {
+                activeTaskId = task.id;
+            }
+
+            persist();
+            return true;
+        }
+
+        function toggleTask(id) {
+            tasks = tasks.map(function (task) {
+                return task.id === id ? { ...task, completed: !task.completed } : task;
+            });
+            persist();
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(function (task) {
+                return task.id !== id;
+            });
+
+            if (activeTaskId === id) {
+                const next = tasks.find(function (task) {
+                    return !task.completed;
+                });
+                activeTaskId = next ? next.id : null;
+            }
+
+            persist();
+        }
+
+        function setActiveTask(id) {
+            const exists = tasks.some(function (task) {
+                return task.id === id;
+            });
+            if (exists) {
+                activeTaskId = id;
+            }
+        }
+
+        function markActiveTaskComplete() {
+            if (!activeTaskId) {
+                return;
+            }
+            const activeTask = tasks.find(function (task) {
+                return task.id === activeTaskId;
+            });
+            if (!activeTask || activeTask.completed) {
+                return;
+            }
+
+            toggleTask(activeTaskId);
+
+            const next = tasks.find(function (task) {
+                return !task.completed;
+            });
+            activeTaskId = next ? next.id : null;
+        }
+
+        function getPromptTask() {
+            if (!activeTaskId) {
+                return null;
+            }
+            const task = tasks.find(function (item) {
+                return item.id === activeTaskId;
+            });
+            if (!task || task.completed) {
+                return null;
+            }
+            return task;
+        }
+
+        function getTasks() {
+            return tasks.slice();
+        }
+
+        function getActiveTaskId() {
+            return activeTaskId;
+        }
+
+        function initActiveTask() {
+            const firstPending = tasks.find(function (task) {
+                return !task.completed;
+            });
+            activeTaskId = firstPending ? firstPending.id : null;
+        }
+
+        function persist() {
+            StorageModule.saveTasks(tasks);
+        }
+
+        return {
+            addTask: addTask,
+            toggleTask: toggleTask,
+            deleteTask: deleteTask,
+            setActiveTask: setActiveTask,
+            markActiveTaskComplete: markActiveTaskComplete,
+            getPromptTask: getPromptTask,
+            getTasks: getTasks,
+            getActiveTaskId: getActiveTaskId,
+            initActiveTask: initActiveTask
+        };
+    })();
+
+    /* Prompt Module: non-blocking task completion modal. */
+    const PromptModule = (function () {
+        let isOpen = false;
+        let onConfirm = null;
+
+        function init() {
+            dom.taskCompleteYes.addEventListener("click", function () {
+                closeModal(true);
+            });
+
+            dom.taskCompleteNo.addEventListener("click", function () {
+                closeModal(false);
+            });
+        }
+
+        function showTaskCompletionPrompt(task, confirmCallback) {
+            if (!task || typeof confirmCallback !== "function") {
+                return;
+            }
+
+            onConfirm = confirmCallback;
+            dom.taskCompleteText.textContent = "Did you complete \"" + task.text + "\"?";
+            dom.taskCompleteModal.classList.remove("hidden");
+            dom.taskCompleteModal.classList.add("show");
+            isOpen = true;
+        }
+
+        function closeModal(confirmed) {
+            const callback = onConfirm;
+
+            dom.taskCompleteModal.classList.remove("show");
+            isOpen = false;
+            onConfirm = null;
+
+            setTimeout(function () {
+                if (!isOpen) {
+                    dom.taskCompleteModal.classList.add("hidden");
+                }
+            }, 180);
+
+            if (confirmed && typeof callback === "function") {
+                callback();
+            }
+        }
+
+        function closeIfOpen() {
+            if (!isOpen) {
+                return false;
+            }
+            closeModal(false);
+            return true;
+        }
+
+        return {
+            init: init,
+            showTaskCompletionPrompt: showTaskCompletionPrompt,
+            closeIfOpen: closeIfOpen
         };
     })();
 
@@ -695,7 +1060,9 @@
             applyTheme(appState.settings.theme);
             renderInsightsQuote();
             renderNotes(NotesModule.getAll());
+            renderTasks(TasksModule.getTasks(), TasksModule.getActiveTaskId());
             renderStats();
+            renderStreak(false);
             CalendarModule.renderCalendar();
         }
 
@@ -808,7 +1175,7 @@
         function renderStats() {
             const today = StatsModule.getToday();
             const totalFocusMinutes = StatsModule.getTotalFocusMinutes();
-            const weekly = StatsModule.getWeeklySummary();
+            const weekly = AnalyticsModule.getLastSevenDays();
             const weeklySessions = weekly.reduce(function (sum, day) {
                 return sum + day.sessions;
             }, 0);
@@ -816,28 +1183,67 @@
             dom.todaySessions.textContent = String(today.sessions);
             dom.weeklySessions.textContent = String(weeklySessions);
             dom.totalFocusTime.textContent = formatHoursMinutes(totalFocusMinutes);
+            AnalyticsModule.renderWeeklyChart(weekly);
+        }
 
-            dom.weeklyChart.innerHTML = "";
-            const maxSessions = weekly.reduce(function (max, day) {
-                return Math.max(max, day.sessions);
-            }, 1);
+        function renderStreak(animateIncrease) {
+            const streak = StreakModule.getState();
+            dom.currentStreak.textContent = String(streak.currentStreak);
+            dom.bestStreak.textContent = String(streak.bestStreak);
 
-            weekly.forEach(function (day) {
-                const bar = document.createElement("div");
-                bar.className = "chart-bar";
+            if (animateIncrease) {
+                dom.currentStreak.classList.remove("streak-pop");
+                dom.bestStreak.classList.remove("streak-pop");
+                void dom.currentStreak.offsetWidth;
+                dom.currentStreak.classList.add("streak-pop");
+                dom.bestStreak.classList.add("streak-pop");
+            }
+        }
 
-                const pill = document.createElement("div");
-                pill.className = "chart-pill";
-                const heightPercent = day.sessions === 0 ? 6 : Math.round((day.sessions / maxSessions) * 100);
-                pill.style.height = String(heightPercent) + "%";
+        function renderTasks(tasks, activeTaskId) {
+            dom.taskList.innerHTML = "";
 
-                const label = document.createElement("span");
-                label.className = "chart-label";
-                label.textContent = day.label;
+            if (!tasks.length) {
+                const empty = document.createElement("p");
+                empty.className = "muted";
+                empty.textContent = "No tasks yet. Add one before your next focus sprint.";
+                dom.taskList.appendChild(empty);
+                return;
+            }
 
-                bar.appendChild(pill);
-                bar.appendChild(label);
-                dom.weeklyChart.appendChild(bar);
+            tasks.forEach(function (task) {
+                const row = document.createElement("article");
+                row.className = "task-item";
+                if (task.completed) {
+                    row.classList.add("completed");
+                }
+                if (task.id === activeTaskId) {
+                    row.classList.add("active");
+                }
+
+                const check = document.createElement("input");
+                check.type = "checkbox";
+                check.checked = task.completed;
+                check.className = "task-check";
+                check.dataset.taskId = task.id;
+                check.setAttribute("aria-label", "Mark task complete");
+
+                const textBtn = document.createElement("button");
+                textBtn.type = "button";
+                textBtn.className = "task-text-btn";
+                textBtn.textContent = task.text;
+                textBtn.dataset.taskId = task.id;
+
+                const deleteBtn = document.createElement("button");
+                deleteBtn.type = "button";
+                deleteBtn.className = "small-btn task-delete-btn";
+                deleteBtn.dataset.taskDeleteId = task.id;
+                deleteBtn.textContent = "Delete";
+
+                row.appendChild(check);
+                row.appendChild(textBtn);
+                row.appendChild(deleteBtn);
+                dom.taskList.appendChild(row);
             });
         }
 
@@ -859,6 +1265,8 @@
             renderSettingsForm: renderSettingsForm,
             renderNotes: renderNotes,
             renderStats: renderStats,
+            renderStreak: renderStreak,
+            renderTasks: renderTasks,
             renderInsightsQuote: renderInsightsQuote,
             applyTheme: applyTheme
         };
@@ -944,6 +1352,19 @@
             if (state.mode === "focus") {
                 state.focusStreak += 1;
                 StatsModule.recordFocus(appState.settings.focusMinutes, new Date());
+
+                const streakResult = StreakModule.registerSessionCompletion(new Date());
+                if (streakResult.increased) {
+                    UIModule.renderStreak(true);
+                }
+
+                const promptTask = TasksModule.getPromptTask();
+                if (promptTask) {
+                    PromptModule.showTaskCompletionPrompt(promptTask, function () {
+                        TasksModule.markActiveTaskComplete();
+                        UIModule.renderTasks(TasksModule.getTasks(), TasksModule.getActiveTaskId());
+                    });
+                }
             }
 
             SoundModule.playAlarm(appState.settings.alarmSound);
@@ -960,6 +1381,7 @@
 
             MusicModule.onModeChange(state.mode);
             UIModule.renderStats();
+            UIModule.renderStreak(false);
             CalendarModule.renderCalendar();
             UIModule.renderInsightsQuote();
             persist();
@@ -1155,6 +1577,46 @@
 
         dom.addNoteBtn.addEventListener("click", NotesModule.addNote);
 
+        dom.taskForm.addEventListener("submit", function (event) {
+            event.preventDefault();
+            const added = TasksModule.addTask(dom.taskInput.value);
+            if (added) {
+                dom.taskInput.value = "";
+                UIModule.renderTasks(TasksModule.getTasks(), TasksModule.getActiveTaskId());
+            }
+        });
+
+        dom.taskList.addEventListener("click", function (event) {
+            const target = event.target;
+            if (!(target instanceof HTMLElement)) {
+                return;
+            }
+
+            const deleteId = target.dataset.taskDeleteId;
+            if (deleteId) {
+                TasksModule.deleteTask(deleteId);
+                UIModule.renderTasks(TasksModule.getTasks(), TasksModule.getActiveTaskId());
+                return;
+            }
+
+            const selectId = target.dataset.taskId;
+            if (selectId && target.classList.contains("task-text-btn")) {
+                TasksModule.setActiveTask(selectId);
+                UIModule.renderTasks(TasksModule.getTasks(), TasksModule.getActiveTaskId());
+            }
+        });
+
+        dom.taskList.addEventListener("change", function (event) {
+            const target = event.target;
+            if (!(target instanceof HTMLInputElement)) {
+                return;
+            }
+            if (target.classList.contains("task-check") && target.dataset.taskId) {
+                TasksModule.toggleTask(target.dataset.taskId);
+                UIModule.renderTasks(TasksModule.getTasks(), TasksModule.getActiveTaskId());
+            }
+        });
+
         dom.musicToggle.addEventListener("click", function () {
             MusicModule.togglePlay();
         });
@@ -1202,10 +1664,15 @@
         document.addEventListener("keydown", function (event) {
             const target = event.target;
             const inInput = target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
-            if (event.key === "Escape" && appState.isFocusFullscreen) {
-                appState.isFocusFullscreen = false;
-                dom.body.classList.remove("focus-fullscreen");
-                dom.fullscreenBtn.textContent = "Fullscreen";
+            if (event.key === "Escape") {
+                if (PromptModule.closeIfOpen()) {
+                    return;
+                }
+                if (appState.isFocusFullscreen) {
+                    appState.isFocusFullscreen = false;
+                    dom.body.classList.remove("focus-fullscreen");
+                    dom.fullscreenBtn.textContent = "Fullscreen";
+                }
             }
             if (event.code === "Space" && !inInput) {
                 event.preventDefault();
@@ -1225,12 +1692,17 @@
     }
 
     function init() {
+        StreakModule.syncOnAppLoad();
+        TasksModule.initActiveTask();
+        PromptModule.init();
         UIModule.init();
         TimerModule.init();
         bindEvents();
         enableRippleButtons();
         MusicModule.init();
         UIModule.renderStats();
+        UIModule.renderStreak(false);
+        UIModule.renderTasks(TasksModule.getTasks(), TasksModule.getActiveTaskId());
         CalendarModule.renderCalendar();
     }
 

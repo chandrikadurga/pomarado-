@@ -164,6 +164,17 @@
                     </div>
                 </section>
 
+                <section class="glass-card panel tasks-panel">
+                    <div class="panel-head compact notes-head">
+                        <h2>Tasks</h2>
+                    </div>
+                    <form id="task-form" class="task-form">
+                        <input id="task-input" type="text" maxlength="120" placeholder="Add your next focus task" aria-label="Task name">
+                        <button id="add-task-btn" class="primary-btn" type="submit">Add</button>
+                    </form>
+                    <div id="task-list" class="task-list" aria-live="polite"></div>
+                </section>
+
                 <section class="glass-card panel notes-panel">
                     <div class="panel-head compact notes-head">
                         <h2>Sticky Notes</h2>
@@ -191,6 +202,14 @@
                         <h3 id="total-focus-time">0h 0m</h3>
                         <p>Total Focus Time</p>
                     </article>
+                    <article class="stat-card streak-card">
+                        <h3 id="current-streak">0</h3>
+                        <p>🔥 Current Streak</p>
+                    </article>
+                    <article class="stat-card streak-card">
+                        <h3 id="best-streak">0</h3>
+                        <p>🏆 Best Streak</p>
+                    </article>
                 </div>
                 <div class="weekly-chart-wrap">
                     <h3>Last 7 Days</h3>
@@ -198,6 +217,18 @@
                 </div>
             </section>
         </main>
+    </div>
+
+    <div id="task-complete-modal" class="task-complete-modal hidden" role="dialog" aria-modal="false" aria-labelledby="task-complete-title">
+        <div class="task-complete-card glass-card">
+            <p class="task-complete-chip">Focus Complete</p>
+            <h3 id="task-complete-title">Task Check-In</h3>
+            <p id="task-complete-text" class="task-complete-text">Did you complete this task?</p>
+            <div class="task-complete-actions">
+                <button id="task-complete-yes" class="primary-btn" type="button">Yes, done</button>
+                <button id="task-complete-no" class="ghost-btn" type="button">Not yet</button>
+            </div>
+        </div>
     </div>
 
     <audio id="alarm-audio" preload="auto"></audio>
