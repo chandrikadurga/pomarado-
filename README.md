@@ -18,8 +18,8 @@ You can also define:
 ```html
 <script>
 window.__SUPABASE_CONFIG = {
-	supabaseUrl: "https://YOUR_PROJECT_ID.supabase.co",
-	supabaseAnonKey: "YOUR_SUPABASE_ANON_KEY"
+  supabaseUrl: "https://YOUR_PROJECT_ID.supabase.co",
+  supabaseAnonKey: "YOUR_SUPABASE_ANON_KEY"
 };
 </script>
 ```
@@ -32,24 +32,24 @@ Run in Supabase SQL editor:
 
 ```sql
 create table if not exists public.user_stats (
-	user_id uuid primary key references auth.users(id) on delete cascade,
-	total_sessions integer not null default 0,
-	total_focus_minutes integer not null default 0,
-	daily_stats jsonb not null default '{}'::jsonb,
-	streak jsonb not null default '{"lastActiveDate":null,"currentStreak":0,"bestStreak":0}'::jsonb,
-	settings jsonb not null default '{}'::jsonb,
-	timer_state jsonb,
-	notes jsonb not null default '[]'::jsonb,
-	music jsonb not null default '{"lastTrackIndex":0,"lastVolume":0.7}'::jsonb,
-	updated_at timestamptz not null default now()
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  total_sessions integer not null default 0,
+  total_focus_minutes integer not null default 0,
+  daily_stats jsonb not null default '{}'::jsonb,
+  streak jsonb not null default '{"lastActiveDate":null,"currentStreak":0,"bestStreak":0}'::jsonb,
+  settings jsonb not null default '{}'::jsonb,
+  timer_state jsonb,
+  notes jsonb not null default '[]'::jsonb,
+  music jsonb not null default '{"lastTrackIndex":0,"lastVolume":0.7}'::jsonb,
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.tasks (
-	id text primary key,
-	user_id uuid not null references auth.users(id) on delete cascade,
-	text text not null,
-	completed boolean not null default false,
-	created_at timestamptz not null default now()
+  id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  text text not null,
+  completed boolean not null default false,
+  created_at timestamptz not null default now()
 );
 ```
 
@@ -100,3 +100,25 @@ using (auth.uid() = user_id);
 ## 4) Run
 
 Open [index.html](index.html) in a browser after setting Supabase keys.
+
+## 5) If Data Fails After Login
+
+Run this in browser console:
+
+window.AppDB.getCurrentUser();
+window.AppDB.debugLoadStats();
+
+If USER is null, auth session is not established.
+
+If DB ERROR mentions row-level security, verify policies are present and active.
+
+If you see "Could not find the table 'public.user_stats' in the schema cache":
+
+- Run the table creation SQL in Section 2
+- Ensure tables are in schema `public`
+- Refresh Supabase dashboard and retry login
+
+Also verify table schema:
+
+- user_stats.user_id must be uuid
+- tasks.user_id must be uuid

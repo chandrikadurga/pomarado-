@@ -16,7 +16,59 @@
         if (raw === "Failed to fetch") {
             return "Failed to reach Supabase. Verify internet, Supabase URL/key, and browser network blocking.";
         }
+        if (raw.includes("otp_expired")) {
+            return "Verification link expired. Request a new signup email and open it immediately.";
+        }
         return raw;
+    }
+
+    function resolveEmailRedirectUrl() {
+        const origin = window.location.origin;
+        const pathname = window.location.pathname || "";
+
+        if (!origin || origin === "null") {
+            return "http://127.0.0.1:5500";
+        }
+
+        if (pathname && pathname.endsWith(".html")) {
+            return origin + pathname;
+        }
+
+        return origin;
+    }
+
+    async function handleAuthRedirect() {
+        const url = new URL(window.location.href);
+        const tokenHash = url.searchParams.get("token_hash");
+        const type = url.searchParams.get("type");
+
+        if (!tokenHash || !type) {
+            return;
+        }
+
+        try {
+            const verifyResult = await window.AppDB.client.auth.verifyOtp({
+                type: type,
+                token_hash: tokenHash
+            });
+
+            if (verifyResult.error) {
+                console.error("[Auth] verifyOtp failed:", verifyResult.error);
+                setMessage(mapAuthError(verifyResult.error), true);
+                return;
+            }
+
+            console.info("[Auth] Email redirect processed successfully");
+            setMessage("Email verified. You are now signed in.", false);
+
+            url.searchParams.delete("token_hash");
+            url.searchParams.delete("type");
+            url.searchParams.delete("next");
+            window.history.replaceState({}, document.title, url.pathname + (url.searchParams.toString() ? "?" + url.searchParams.toString() : ""));
+        } catch (error) {
+            console.error("[Auth] Redirect handling crashed:", error);
+            setMessage(mapAuthError(error), true);
+        }
     }
 
     async function login(email, password) {
@@ -41,9 +93,15 @@
 
     async function signup(email, password) {
         try {
+            const emailRedirectTo = resolveEmailRedirectUrl();
+            console.info("[Auth] Signup emailRedirectTo:", emailRedirectTo);
+
             const { error } = await window.AppDB.client.auth.signUp({
                 email: email,
-                password: password
+                password: password,
+                options: {
+                    emailRedirectTo: emailRedirectTo
+                }
             });
 
             if (error) {
@@ -98,6 +156,8 @@
             listeners.onSignedOut();
             return;
         }
+
+        await handleAuthRedirect();
 
         try {
             const sessionResult = await window.AppDB.client.auth.getSession();

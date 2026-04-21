@@ -1828,6 +1828,11 @@
         await StorageModule.hydrateFromCloud(user.id);
         window.AppUI.showDashboard();
 
+        const setupWarning = window.AppDB.getSetupWarning ? window.AppDB.getSetupWarning() : "";
+        if (setupWarning) {
+            window.AppUI.setAuthStatus(setupWarning, true);
+        }
+
         if (!appInitialized) {
             init();
             appInitialized = true;
@@ -1851,8 +1856,12 @@
     async function startAuthFlow() {
         await window.AuthModule.init({
             onSignedIn: function (user) {
-                bootstrapAuthenticatedApp(user).catch(function () {
-                    window.AppUI.setAuthStatus("Could not load cloud data. Check Supabase setup.", true);
+                bootstrapAuthenticatedApp(user).catch(function (error) {
+                    const message = error && error.message
+                        ? error.message
+                        : "Could not load cloud data. Check Supabase setup.";
+                    console.error("[App] Cloud bootstrap failed:", error);
+                    window.AppUI.setAuthStatus(message, true);
                     bootstrapLoggedOutState();
                 });
             },
