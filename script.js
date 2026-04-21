@@ -188,6 +188,7 @@
         themeSettingToggle: document.getElementById("theme-setting-toggle"),
         alarmSoundSelect: document.getElementById("alarm-sound"),
         saveSettingsBtn: document.getElementById("save-settings-btn"),
+        settingsStatus: document.getElementById("settings-status"),
         testSoundBtn: document.getElementById("test-sound-btn"),
 
         monthYear: document.getElementById("month-year"),
@@ -1513,6 +1514,50 @@
     })();
 
     function bindEvents() {
+        let settingsStatusTimer = null;
+
+        function setSettingsStatus(message, isError) {
+            if (!dom.settingsStatus) {
+                return;
+            }
+            dom.settingsStatus.textContent = message;
+            dom.settingsStatus.style.color = isError ? "#ff8e95" : "";
+            if (settingsStatusTimer) {
+                clearTimeout(settingsStatusTimer);
+            }
+            if (message) {
+                settingsStatusTimer = setTimeout(function () {
+                    dom.settingsStatus.textContent = "";
+                    dom.settingsStatus.style.color = "";
+                }, 2400);
+            }
+        }
+
+        function normalizeNumberInput(inputEl, min, max, fallbackValue) {
+            const value = clampInt(inputEl.value, min, max, fallbackValue);
+            inputEl.value = String(value);
+            return value;
+        }
+
+        function applySettingsFromForm() {
+            appState.settings.focusMinutes = normalizeNumberInput(dom.focusDurationInput, 1, 120, appState.settings.focusMinutes);
+            appState.settings.shortBreakMinutes = normalizeNumberInput(dom.shortBreakDurationInput, 1, 60, appState.settings.shortBreakMinutes);
+            appState.settings.longBreakMinutes = normalizeNumberInput(dom.longBreakDurationInput, 1, 120, appState.settings.longBreakMinutes);
+            appState.settings.sessionsBeforeLong = normalizeNumberInput(dom.sessionsCountInput, 1, 12, appState.settings.sessionsBeforeLong);
+            appState.settings.soundEnabled = dom.soundToggleInput.checked;
+            appState.settings.theme = dom.themeSettingToggle.checked ? "light" : "dark";
+            appState.settings.alarmSound = ["bell", "chime", "buzzer"].includes(dom.alarmSoundSelect.value)
+                ? dom.alarmSoundSelect.value
+                : appState.settings.alarmSound;
+
+            StorageModule.saveSettings(appState.settings);
+            UIModule.applyTheme(appState.settings.theme);
+            TimerModule.syncWithUpdatedSettings();
+            UIModule.renderSettingsForm();
+            UIModule.renderTimer(TimerModule.getState());
+            setSettingsStatus("Settings saved", false);
+        }
+
         dom.startPauseBtn.addEventListener("click", TimerModule.startPauseToggle);
         dom.resetBtn.addEventListener("click", TimerModule.reset);
 
@@ -1535,37 +1580,48 @@
         });
 
         dom.saveSettingsBtn.addEventListener("click", function () {
-            appState.settings.focusMinutes = clampInt(dom.focusDurationInput.value, 1, 120, DEFAULT_SETTINGS.focusMinutes);
-            appState.settings.shortBreakMinutes = clampInt(dom.shortBreakDurationInput.value, 1, 60, DEFAULT_SETTINGS.shortBreakMinutes);
-            appState.settings.longBreakMinutes = clampInt(dom.longBreakDurationInput.value, 1, 120, DEFAULT_SETTINGS.longBreakMinutes);
-            appState.settings.sessionsBeforeLong = clampInt(dom.sessionsCountInput.value, 1, 12, DEFAULT_SETTINGS.sessionsBeforeLong);
-            appState.settings.soundEnabled = dom.soundToggleInput.checked;
-            appState.settings.theme = dom.themeSettingToggle.checked ? "light" : "dark";
-            appState.settings.alarmSound = ["bell", "chime", "buzzer"].includes(dom.alarmSoundSelect.value)
-                ? dom.alarmSoundSelect.value
-                : DEFAULT_SETTINGS.alarmSound;
+            applySettingsFromForm();
+        });
 
-            StorageModule.saveSettings(appState.settings);
-            UIModule.applyTheme(appState.settings.theme);
-            TimerModule.syncWithUpdatedSettings();
-            UIModule.renderSettingsForm();
-            UIModule.renderTimer(TimerModule.getState());
+        [dom.focusDurationInput, dom.shortBreakDurationInput, dom.longBreakDurationInput, dom.sessionsCountInput].forEach(function (inputEl) {
+            inputEl.addEventListener("blur", function () {
+                normalizeNumberInput(
+                    inputEl,
+                    Number(inputEl.min || 1),
+                    Number(inputEl.max || 120),
+                    Number(inputEl.defaultValue || 1)
+                );
+            });
+        });
+
+        [dom.focusDurationInput, dom.shortBreakDurationInput, dom.longBreakDurationInput, dom.sessionsCountInput].forEach(function (inputEl) {
+            inputEl.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    applySettingsFromForm();
+                }
+            });
         });
 
         dom.soundToggleInput.addEventListener("change", function () {
             appState.settings.soundEnabled = dom.soundToggleInput.checked;
             StorageModule.saveSettings(appState.settings);
+            setSettingsStatus("Sound setting saved", false);
         });
 
         dom.themeSettingToggle.addEventListener("change", function () {
             const selectedTheme = dom.themeSettingToggle.checked ? "light" : "dark";
             UIModule.applyTheme(selectedTheme);
             UIModule.renderSettingsForm();
+            setSettingsStatus("Theme setting saved", false);
         });
 
         dom.alarmSoundSelect.addEventListener("change", function () {
-            appState.settings.alarmSound = dom.alarmSoundSelect.value;
+            appState.settings.alarmSound = ["bell", "chime", "buzzer"].includes(dom.alarmSoundSelect.value)
+                ? dom.alarmSoundSelect.value
+                : appState.settings.alarmSound;
             StorageModule.saveSettings(appState.settings);
+            setSettingsStatus("Alarm sound saved", false);
         });
 
         dom.testSoundBtn.addEventListener("click", function () {

@@ -746,6 +746,12 @@ textarea {
     gap: 8px;
 }
 
+.settings-status {
+    min-height: 1.1em;
+    margin: 8px 2px 0;
+    font-size: 0.8rem;
+}
+
 /* Notes */
 .notes-panel {
     min-height: 260px;
