@@ -7,13 +7,36 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="mode-focus">
-    <div class="app-shell">
+    <section id="auth-screen" class="auth-screen">
+        <div class="auth-card glass-card">
+            <p class="eyebrow">Cloud Workspace</p>
+            <h1>Welcome Back</h1>
+            <p class="muted">Sign in to sync your focus data across devices.</p>
+
+            <form id="auth-form" class="auth-form">
+                <label for="auth-email">Email</label>
+                <input id="auth-email" type="email" required placeholder="you@example.com">
+
+                <label for="auth-password">Password</label>
+                <input id="auth-password" type="password" minlength="6" required placeholder="Minimum 6 characters">
+
+                <div class="auth-actions">
+                    <button id="login-btn" class="primary-btn" type="button">Login</button>
+                    <button id="signup-btn" class="ghost-btn" type="button">Sign Up</button>
+                </div>
+                <p id="auth-status" class="settings-status muted" role="status" aria-live="polite"></p>
+            </form>
+        </div>
+    </section>
+
+    <div id="app-shell" class="app-shell hidden">
         <header class="topbar glass-card">
             <div>
                 <p class="eyebrow">Focus Console</p>
                 <h1>Productivity Dashboard</h1>
             </div>
             <div class="topbar-actions">
+                <button id="logout-btn" class="ghost-btn" type="button">Logout</button>
                 <button id="theme-toggle" class="ghost-btn" type="button">Light Mode</button>
                 <button id="fullscreen-btn" class="ghost-btn" type="button">Fullscreen</button>
             </div>
@@ -234,6 +257,10 @@
 
     <audio id="alarm-audio" preload="auto"></audio>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <script src="db.js"></script>
+    <script src="auth.js"></script>
+    <script src="ui.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

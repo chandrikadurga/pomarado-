@@ -31,128 +31,160 @@
         "Your calendar becomes your results when sessions are completed."
     ];
 
-    /* Storage Module: centralizes all localStorage reads and writes. */
+    /* Storage Module: cloud-backed cache with Supabase persistence. */
     const StorageModule = (function () {
-        const keys = {
-            settings: "dashboard.settings.v1",
-            timerState: "dashboard.timerState.v1",
-            statsLegacy: "dashboard.stats.v1",
-            dailyStats: "dailyStats",
-            streakData: "streakData",
-            tasks: "tasks",
-            notes: "dashboard.notes.v1",
-            music: "dashboard.music.v1"
+        const cloudState = {
+            settings: { ...DEFAULT_SETTINGS },
+            timerState: null,
+            stats: { daily: {} },
+            streakData: {
+                lastActiveDate: null,
+                currentStreak: 0,
+                bestStreak: 0
+            },
+            tasks: [],
+            notes: [],
+            music: {
+                lastTrackIndex: 0,
+                lastVolume: 0.7
+            }
         };
 
-        function get(key, fallback) {
-            try {
-                const raw = localStorage.getItem(key);
-                if (!raw) {
-                    return fallback;
-                }
-                return JSON.parse(raw);
-            } catch (error) {
-                return fallback;
+        function persistSafe(saveOperation) {
+            if (!appState.currentUserId) {
+                return;
             }
+            saveOperation().catch(function () {
+                // Swallow transient network errors; next write will retry latest state.
+            });
         }
 
-        function set(key, value) {
-            localStorage.setItem(key, JSON.stringify(value));
+        function normalizeSettings(saved) {
+            if (!saved || typeof saved !== "object") {
+                return { ...DEFAULT_SETTINGS };
+            }
+
+            return {
+                focusMinutes: clampInt(saved.focusMinutes, 1, 120, DEFAULT_SETTINGS.focusMinutes),
+                shortBreakMinutes: clampInt(saved.shortBreakMinutes, 1, 60, DEFAULT_SETTINGS.shortBreakMinutes),
+                longBreakMinutes: clampInt(saved.longBreakMinutes, 1, 120, DEFAULT_SETTINGS.longBreakMinutes),
+                sessionsBeforeLong: clampInt(saved.sessionsBeforeLong, 1, 12, DEFAULT_SETTINGS.sessionsBeforeLong),
+                soundEnabled: typeof saved.soundEnabled === "boolean" ? saved.soundEnabled : DEFAULT_SETTINGS.soundEnabled,
+                alarmSound: ["bell", "chime", "buzzer"].includes(saved.alarmSound)
+                    ? saved.alarmSound
+                    : DEFAULT_SETTINGS.alarmSound,
+                theme: saved.theme === "light" ? "light" : "dark"
+            };
         }
 
         return {
-            keys: keys,
-            loadSettings: function () {
-                const saved = get(keys.settings, null);
-                if (!saved || typeof saved !== "object") {
-                    return { ...DEFAULT_SETTINGS };
-                }
+            hydrateFromCloud: async function (userId) {
+                const bundle = await window.AppDB.loadUserBundle(userId);
 
-                return {
-                    focusMinutes: clampInt(saved.focusMinutes, 1, 120, DEFAULT_SETTINGS.focusMinutes),
-                    shortBreakMinutes: clampInt(saved.shortBreakMinutes, 1, 60, DEFAULT_SETTINGS.shortBreakMinutes),
-                    longBreakMinutes: clampInt(saved.longBreakMinutes, 1, 120, DEFAULT_SETTINGS.longBreakMinutes),
-                    sessionsBeforeLong: clampInt(saved.sessionsBeforeLong, 1, 12, DEFAULT_SETTINGS.sessionsBeforeLong),
-                    soundEnabled: typeof saved.soundEnabled === "boolean" ? saved.soundEnabled : DEFAULT_SETTINGS.soundEnabled,
-                    alarmSound: ["bell", "chime", "buzzer"].includes(saved.alarmSound)
-                        ? saved.alarmSound
-                        : DEFAULT_SETTINGS.alarmSound,
-                    theme: saved.theme === "light" ? "light" : "dark"
-                };
+                Object.assign(cloudState.settings, normalizeSettings(bundle.settings));
+                cloudState.timerState = bundle.timerState || null;
+
+                cloudState.stats.daily = bundle.stats && bundle.stats.daily && typeof bundle.stats.daily === "object"
+                    ? bundle.stats.daily
+                    : {};
+
+                Object.assign(cloudState.streakData, {
+                    lastActiveDate: bundle.streakData && typeof bundle.streakData.lastActiveDate === "string"
+                        ? bundle.streakData.lastActiveDate
+                        : null,
+                    currentStreak: bundle.streakData && Number.isFinite(bundle.streakData.currentStreak)
+                        ? Math.max(0, bundle.streakData.currentStreak)
+                        : 0,
+                    bestStreak: bundle.streakData && Number.isFinite(bundle.streakData.bestStreak)
+                        ? Math.max(0, bundle.streakData.bestStreak)
+                        : 0
+                });
+
+                cloudState.tasks.splice(0, cloudState.tasks.length);
+                (Array.isArray(bundle.tasks) ? bundle.tasks : []).forEach(function (task) {
+                    cloudState.tasks.push({
+                        id: String(task.id),
+                        text: String(task.text || ""),
+                        completed: Boolean(task.completed)
+                    });
+                });
+
+                cloudState.notes.splice(0, cloudState.notes.length);
+                (Array.isArray(bundle.notes) ? bundle.notes : []).forEach(function (note) {
+                    cloudState.notes.push(note);
+                });
+
+                Object.assign(cloudState.music, {
+                    lastTrackIndex: Number.isFinite(bundle.music && bundle.music.lastTrackIndex)
+                        ? Math.max(0, bundle.music.lastTrackIndex)
+                        : 0,
+                    lastVolume: typeof (bundle.music && bundle.music.lastVolume) === "number"
+                        ? Math.max(0, Math.min(1, bundle.music.lastVolume))
+                        : 0.7
+                });
+            },
+            loadSettings: function () {
+                return cloudState.settings;
             },
             saveSettings: function (settings) {
-                set(keys.settings, settings);
+                Object.assign(cloudState.settings, settings);
+                persistSafe(function () {
+                    return window.AppDB.saveSettings(appState.currentUserId, cloudState.settings);
+                });
             },
             loadTimerState: function () {
-                return get(keys.timerState, null);
+                return cloudState.timerState;
             },
             saveTimerState: function (timerState) {
-                set(keys.timerState, timerState);
+                cloudState.timerState = timerState;
+                persistSafe(function () {
+                    return window.AppDB.saveTimerState(appState.currentUserId, cloudState.timerState);
+                });
             },
             loadStats: function () {
-                const stats = get(keys.dailyStats, get(keys.statsLegacy, { daily: {} }));
-                if (!stats || typeof stats !== "object" || !stats.daily || typeof stats.daily !== "object") {
-                    return { daily: {} };
-                }
-                return stats;
+                return cloudState.stats;
             },
             saveStats: function (stats) {
-                set(keys.dailyStats, stats);
+                cloudState.stats = stats;
+                persistSafe(function () {
+                    return window.AppDB.saveStats(appState.currentUserId, cloudState.stats);
+                });
             },
             loadStreakData: function () {
-                const streak = get(keys.streakData, null);
-                if (!streak || typeof streak !== "object") {
-                    return {
-                        lastActiveDate: null,
-                        currentStreak: 0,
-                        bestStreak: 0
-                    };
-                }
-                return {
-                    lastActiveDate: typeof streak.lastActiveDate === "string" ? streak.lastActiveDate : null,
-                    currentStreak: Number.isFinite(streak.currentStreak) ? Math.max(0, streak.currentStreak) : 0,
-                    bestStreak: Number.isFinite(streak.bestStreak) ? Math.max(0, streak.bestStreak) : 0
-                };
+                return cloudState.streakData;
             },
             saveStreakData: function (streakData) {
-                set(keys.streakData, streakData);
+                cloudState.streakData = streakData;
+                persistSafe(function () {
+                    return window.AppDB.saveStreakData(appState.currentUserId, cloudState.streakData);
+                });
             },
             loadTasks: function () {
-                const tasks = get(keys.tasks, []);
-                return Array.isArray(tasks)
-                    ? tasks.filter(function (task) {
-                        return task && typeof task === "object" && typeof task.id === "string" && typeof task.text === "string";
-                    }).map(function (task) {
-                        return {
-                            id: task.id,
-                            text: task.text,
-                            completed: Boolean(task.completed)
-                        };
-                    })
-                    : [];
+                return cloudState.tasks;
             },
             saveTasks: function (tasks) {
-                set(keys.tasks, tasks);
+                cloudState.tasks = tasks;
+                persistSafe(function () {
+                    return window.AppDB.saveTasks(appState.currentUserId, cloudState.tasks);
+                });
             },
             loadNotes: function () {
-                const notes = get(keys.notes, []);
-                return Array.isArray(notes) ? notes : [];
+                return cloudState.notes;
             },
             saveNotes: function (notes) {
-                set(keys.notes, notes);
+                cloudState.notes = notes;
+                persistSafe(function () {
+                    return window.AppDB.saveNotes(appState.currentUserId, cloudState.notes);
+                });
             },
             loadMusic: function () {
-                const music = get(keys.music, { lastTrackIndex: 0 });
-                if (!music || typeof music !== "object") {
-                    return { lastTrackIndex: 0, lastVolume: 0.7 };
-                }
-                return {
-                    lastTrackIndex: Number.isFinite(music.lastTrackIndex) ? Math.max(0, music.lastTrackIndex) : 0,
-                    lastVolume: typeof music.lastVolume === "number" ? Math.max(0, Math.min(1, music.lastVolume)) : 0.7
-                };
+                return cloudState.music;
             },
             saveMusic: function (music) {
-                set(keys.music, music);
+                cloudState.music = music;
+                persistSafe(function () {
+                    return window.AppDB.saveMusic(appState.currentUserId, cloudState.music);
+                });
             }
         };
     })();
@@ -161,6 +193,11 @@
 
     const dom = {
         body: document.body,
+        appShell: document.getElementById("app-shell"),
+        authScreen: document.getElementById("auth-screen"),
+        loginBtn: document.getElementById("login-btn"),
+        signupBtn: document.getElementById("signup-btn"),
+        logoutBtn: document.getElementById("logout-btn"),
         themeToggle: document.getElementById("theme-toggle"),
         fullscreenBtn: document.getElementById("fullscreen-btn"),
         timerPanel: document.querySelector(".timer-panel"),
@@ -244,7 +281,8 @@
         settings: settings,
         selectedDateKey: null,
         viewMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-        isFocusFullscreen: false
+        isFocusFullscreen: false,
+        currentUserId: null
     };
 
     /* Stats Module: owns daily productivity aggregates and summaries. */
@@ -1561,6 +1599,28 @@
         dom.startPauseBtn.addEventListener("click", TimerModule.startPauseToggle);
         dom.resetBtn.addEventListener("click", TimerModule.reset);
 
+        dom.loginBtn.addEventListener("click", function () {
+            const credentials = window.AppUI.getAuthCredentials();
+            if (!credentials.email || !credentials.password) {
+                window.AppUI.setAuthStatus("Enter email and password", true);
+                return;
+            }
+            window.AuthModule.login(credentials.email, credentials.password);
+        });
+
+        dom.signupBtn.addEventListener("click", function () {
+            const credentials = window.AppUI.getAuthCredentials();
+            if (!credentials.email || !credentials.password) {
+                window.AppUI.setAuthStatus("Enter email and password", true);
+                return;
+            }
+            window.AuthModule.signup(credentials.email, credentials.password);
+        });
+
+        dom.logoutBtn.addEventListener("click", function () {
+            window.AuthModule.logout();
+        });
+
         dom.modeButtons.forEach(function (btn) {
             btn.addEventListener("click", function () {
                 TimerModule.switchMode(btn.dataset.mode, true);
@@ -1753,13 +1813,56 @@
         PromptModule.init();
         UIModule.init();
         TimerModule.init();
-        bindEvents();
         enableRippleButtons();
         MusicModule.init();
         UIModule.renderStats();
         UIModule.renderStreak(false);
         UIModule.renderTasks(TasksModule.getTasks(), TasksModule.getActiveTaskId());
         CalendarModule.renderCalendar();
+    }
+
+    let appInitialized = false;
+
+    async function bootstrapAuthenticatedApp(user) {
+        appState.currentUserId = user.id;
+        await StorageModule.hydrateFromCloud(user.id);
+        window.AppUI.showDashboard();
+
+        if (!appInitialized) {
+            init();
+            appInitialized = true;
+            return;
+        }
+
+        UIModule.renderSettingsForm();
+        UIModule.renderStats();
+        UIModule.renderStreak(false);
+        UIModule.renderTasks(TasksModule.getTasks(), TasksModule.getActiveTaskId());
+        UIModule.renderTimer(TimerModule.getState());
+        CalendarModule.renderCalendar();
+    }
+
+    function bootstrapLoggedOutState() {
+        appState.currentUserId = null;
+        window.AppUI.clearAuthForm();
+        window.AppUI.showAuthScreen();
+    }
+
+    async function startAuthFlow() {
+        await window.AuthModule.init({
+            onSignedIn: function (user) {
+                bootstrapAuthenticatedApp(user).catch(function () {
+                    window.AppUI.setAuthStatus("Could not load cloud data. Check Supabase setup.", true);
+                    bootstrapLoggedOutState();
+                });
+            },
+            onSignedOut: function () {
+                bootstrapLoggedOutState();
+            },
+            onMessage: function (message, isError) {
+                window.AppUI.setAuthStatus(message, isError);
+            }
+        });
     }
 
     function enableRippleButtons() {
@@ -1893,5 +1996,6 @@
         }
     }
 
-    init();
+    bindEvents();
+    startAuthFlow();
 })();
