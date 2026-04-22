@@ -441,14 +441,19 @@
         },
         saveProject: async function(userId, projectData) {
             const payload = { user_id: userId, ...projectData };
+            let response;
             if (!payload.id) {
                 payload.id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
                     var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
                     return v.toString(16);
                 });
-                await client.from("projects").insert(payload);
+                response = await client.from("projects").insert([payload]);
             } else {
-                await client.from("projects").update(payload).eq("id", payload.id);
+                response = await client.from("projects").update(payload).eq("id", payload.id);
+            }
+            if (response.error) {
+                console.error("saveProject error:", response.error);
+                alert("Database Error (Projects): " + response.error.message);
             }
         },
         deleteProject: async function(projectId) {
@@ -464,14 +469,19 @@
         },
         saveMilestone: async function(userId, milestoneData) {
             const payload = { user_id: userId, ...milestoneData };
+            let response;
             if (!payload.id) {
                 payload.id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
                     var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
                     return v.toString(16);
                 });
-                await client.from("milestones").insert(payload);
+                response = await client.from("milestones").insert([payload]);
             } else {
-                await client.from("milestones").update(payload).eq("id", payload.id);
+                response = await client.from("milestones").update(payload).eq("id", payload.id);
+            }
+            if (response.error) {
+                console.error("saveMilestone error:", response.error);
+                alert("Database Error (Milestones): " + response.error.message);
             }
         },
 
@@ -483,14 +493,19 @@
         },
         saveSubject: async function(userId, subjectData) {
             const payload = { user_id: userId, ...subjectData };
+            let response;
             if (!payload.id) {
                 payload.id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
                     var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
                     return v.toString(16);
                 });
-                await client.from("subjects").insert(payload);
+                response = await client.from("subjects").insert([payload]);
             } else {
-                await client.from("subjects").update(payload).eq("id", payload.id);
+                response = await client.from("subjects").update(payload).eq("id", payload.id);
+            }
+            if (response.error) {
+                console.error("saveSubject error:", response.error);
+                alert("Database Error (Subjects): " + response.error.message);
             }
         },
         deleteSubject: async function(subjectId) {
