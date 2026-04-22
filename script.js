@@ -1164,7 +1164,7 @@
             dom.longBreakDurationInput.value = String(appState.settings.longBreakMinutes);
             dom.sessionsCountInput.value = String(appState.settings.sessionsBeforeLong);
             dom.soundToggleInput.checked = appState.settings.soundEnabled;
-            dom.themeSettingToggle.checked = appState.settings.theme === "light";
+            /* removed theme toggle check */
             dom.alarmSoundSelect.value = appState.settings.alarmSound;
         }
 
@@ -1292,7 +1292,7 @@
             const normalized = theme === "light" ? "light" : "dark";
             document.documentElement.dataset.theme = normalized;
             appState.settings.theme = normalized;
-            dom.themeToggle.textContent = normalized === "dark" ? "Light Mode" : "Dark Mode";
+            /* removed text content toggles */
             StorageModule.saveSettings(appState.settings);
         }
 
