@@ -441,10 +441,15 @@
         },
         saveProject: async function(userId, projectData) {
             const payload = { user_id: userId, ...projectData };
-            const { error } = payload.id 
-                ? await client.from("projects").update(payload).eq("id", payload.id)
-                : await client.from("projects").insert(payload);
-            if (error) console.error("saveProject error:", error);
+            if (!payload.id) {
+                payload.id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+                await client.from("projects").insert(payload);
+            } else {
+                await client.from("projects").update(payload).eq("id", payload.id);
+            }
         },
         deleteProject: async function(projectId) {
             const { error } = await client.from("projects").delete().eq("id", projectId);
@@ -459,10 +464,15 @@
         },
         saveMilestone: async function(userId, milestoneData) {
             const payload = { user_id: userId, ...milestoneData };
-            const { error } = payload.id 
-                ? await client.from("milestones").update(payload).eq("id", payload.id)
-                : await client.from("milestones").insert(payload);
-            if (error) console.error("saveMilestone error:", error);
+            if (!payload.id) {
+                payload.id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+                await client.from("milestones").insert(payload);
+            } else {
+                await client.from("milestones").update(payload).eq("id", payload.id);
+            }
         },
 
         // --- SUBJECTS ---
@@ -473,10 +483,15 @@
         },
         saveSubject: async function(userId, subjectData) {
             const payload = { user_id: userId, ...subjectData };
-            const { error } = payload.id 
-                ? await client.from("subjects").update(payload).eq("id", payload.id)
-                : await client.from("subjects").insert(payload);
-            if (error) console.error("saveSubject error:", error);
+            if (!payload.id) {
+                payload.id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+                await client.from("subjects").insert(payload);
+            } else {
+                await client.from("subjects").update(payload).eq("id", payload.id);
+            }
         },
         deleteSubject: async function(subjectId) {
             const { error } = await client.from("subjects").delete().eq("id", subjectId);
