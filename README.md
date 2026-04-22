@@ -1,128 +1,50 @@
-# pomarado-
+# PomaradoOS - Personal Productivity Operating System
 
-Supabase-powered Pomodoro dashboard with:
+*Designed & Developed by Chandrika Durga*
 
-- Email/password authentication
-- Cloud sync for sessions, daily stats, streak, settings, tasks
-- Row Level Security (RLS) for per-user data isolation
+## 🚀 Overview
 
-## 1) Configure Supabase Keys
+**PomaradoOS** is a comprehensive, multi-page personal cloud-synchronized productivity system. Built initially as a Pomodoro dashboard, it has evolved into a fully-fledged operating system for tracking tasks, projects, academic milestones, and daily health goals (sleep and hydration).
 
-Edit [db.js](db.js) and set:
+I accelerated the development of this full-stack application by combining my own custom UI/UX design skills from **Figma** with **Advanced AI Prompt Engineering** techniques to rapidly architect and iterate the codebase:
 
-- `supabaseUrl`
-- `supabaseAnonKey`
+### ✨ Engineering & Design Methodology
 
-You can also define:
+- **UI/UX Design (Figma):** Cultivated a highly premium, modern light aesthetic. Instead of standard flat UI, I designed and mandated a custom aesthetic utilizing "glassmorphism" shadow blending, vibrant coral/blue gradient accents, and spatial fluidity.
+- **Chain of Thought (CoT) Prompting:** To coordinate the complex multi-module integration (Dashboard, Projects, Health, Subjects), I commanded the AI using step-by-step logic. I laid out the sequential execution of frontend routing, database schema definitions, and module injection before allowing the AI to generate code.
+- **Few-Shot Prompting:** To maintain absolute structural integrity across the existing codebase, I utilized few-shot prompting techniques. I provided the AI with strict examples of how the existing `AppDB` wrappers and vanilla JS events were structured, ensuring all injected multi-page features (`projects.js`, `subjects.js`, etc.) flawlessly matched my architecture natively.
 
-```html
-<script>
-window.__SUPABASE_CONFIG = {
-  supabaseUrl: "https://YOUR_PROJECT_ID.supabase.co",
-  supabaseAnonKey: "YOUR_SUPABASE_ANON_KEY"
+---
+
+## 🛠 Features
+
+- **Pomodoro Focus Timer** (Custom settings, alarms, streaks)
+- **Project & Startup Tracker** (Progress bars, milestone checklists)
+- **Academic Subject Tracker** (Chapter/unit completion logic)
+- **Health OS** (Water goal tracking and sleep duration logs)
+- **Cloud Sync** (Powered by Supabase and Row Level Security)
+- **SPA Router** (Fast, native Vanilla JS Single Page Application module switching)
+
+---
+
+## ⚙️ Backend Setup (Supabase)
+
+### 1) Configure Keys
+
+Edit `db.js` and input your variables:
+```javascript
+const config = {
+    supabaseUrl: "https://YOUR_PROJECT_ID.supabase.co",
+    supabaseAnonKey: "YOUR_SUPABASE_ANON_KEY"
 };
-</script>
 ```
 
-before loading [db.js](db.js).
+### 2) Database Schema & Security
 
-## 2) Create Tables
+To enable all the tracking and dashboard features, open your Supabase SQL Editor and run the provided SQL definitions in your `supabase_setup.sql` file.
 
-Run in Supabase SQL editor:
+This establishes all necessary tables (`user_stats`, `tasks`, `profiles`, `projects`, `milestones`, `subjects`, `health_logs`) and enforces strict **Row Level Security (RLS)** ensuring every user's data is isolated and safely restricted only to their `auth.uid()`.
 
-```sql
-create table if not exists public.user_stats (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  total_sessions integer not null default 0,
-  total_focus_minutes integer not null default 0,
-  daily_stats jsonb not null default '{}'::jsonb,
-  streak jsonb not null default '{"lastActiveDate":null,"currentStreak":0,"bestStreak":0}'::jsonb,
-  settings jsonb not null default '{}'::jsonb,
-  timer_state jsonb,
-  notes jsonb not null default '[]'::jsonb,
-  music jsonb not null default '{"lastTrackIndex":0,"lastVolume":0.7}'::jsonb,
-  updated_at timestamptz not null default now()
-);
+### 3) Run Locally
 
-create table if not exists public.tasks (
-  id text primary key,
-  user_id uuid not null references auth.users(id) on delete cascade,
-  text text not null,
-  completed boolean not null default false,
-  created_at timestamptz not null default now()
-);
-```
-
-## 3) Enable RLS and Policies
-
-```sql
-alter table public.user_stats enable row level security;
-alter table public.tasks enable row level security;
-
-drop policy if exists "user_stats_select_own" on public.user_stats;
-create policy "user_stats_select_own"
-on public.user_stats for select
-using (auth.uid() = user_id);
-
-drop policy if exists "user_stats_insert_own" on public.user_stats;
-create policy "user_stats_insert_own"
-on public.user_stats for insert
-with check (auth.uid() = user_id);
-
-drop policy if exists "user_stats_update_own" on public.user_stats;
-create policy "user_stats_update_own"
-on public.user_stats for update
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
-
-drop policy if exists "tasks_select_own" on public.tasks;
-create policy "tasks_select_own"
-on public.tasks for select
-using (auth.uid() = user_id);
-
-drop policy if exists "tasks_insert_own" on public.tasks;
-create policy "tasks_insert_own"
-on public.tasks for insert
-with check (auth.uid() = user_id);
-
-drop policy if exists "tasks_update_own" on public.tasks;
-create policy "tasks_update_own"
-on public.tasks for update
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
-
-drop policy if exists "tasks_delete_own" on public.tasks;
-create policy "tasks_delete_own"
-on public.tasks for delete
-using (auth.uid() = user_id);
-```
-
-## 4) Run
-
-Open [index.html](index.html) in a browser after setting Supabase keys.
-
-## 5) If Data Fails After Login
-
-Run this in browser console:
-
-window.AppDB.getCurrentUser();
-window.testInsert();
-window.AppDB.debugLoadStats();
-
-If USER is null, auth session is not established.
-
-If DB ERROR mentions row-level security, verify policies are present and active.
-
-If test insert fails with RLS, re-run policies from Section 3 and make sure `auth.uid() = user_id` is used for insert/select/update.
-
-If you see "Could not find the table 'public.user_stats' in the schema cache":
-
-- Run the table creation SQL in Section 2
-- Ensure tables are in schema `public`
-- Refresh Supabase dashboard and retry login
-
-Also verify table schema:
-
-- user_stats.user_id must be uuid
-- user_stats stores totals in `total_sessions` and `total_focus_minutes` (not `sessions` / `focus_time` columns)
-- tasks.user_id must be uuid
+Because this is purely built in Vanilla JS, HTML, and CSS, simply open `index.html` in your browser or run it via a Live Server extension. Log in or create an account to start syncing data to your cloud!
