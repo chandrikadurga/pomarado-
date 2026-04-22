@@ -1,16 +1,16 @@
 :root {
-    --bg-a: #e9f0ff;
-    --bg-b: #e3e6fa;
-    --bg-c: #eddcf7;
-    --text-main: #202846;
-    --text-soft: #5f6f98;
-    --card-bg: #e8edf9;
-    --card-bg-soft: #f0f4fc;
+    --bg-a: #111529;
+    --bg-b: #1b1d3a;
+    --bg-c: #2a2142;
+    --text-main: #e7ecff;
+    --text-soft: #a8b0d4;
+    --card-bg: #1f2433;
+    --card-bg-soft: #252c3f;
     --card-radius: 20px;
     --inner-radius: 14px;
-    --outer-shadow: 8px 8px 16px rgba(131, 150, 191, 0.45);
-    --highlight-shadow: -4px -4px 10px rgba(255, 255, 255, 0.95);
-    --inset-shadow: inset 2px 2px 8px rgba(137, 158, 199, 0.35), inset -2px -2px 6px rgba(255, 255, 255, 0.95);
+    --outer-shadow: 8px 8px 16px rgba(0, 0, 0, 0.4);
+    --highlight-shadow: -4px -4px 10px rgba(255, 255, 255, 0.05);
+    --inset-shadow: inset 2px 2px 8px rgba(0, 0, 0, 0.32), inset -2px -2px 6px rgba(255, 255, 255, 0.04);
     --focus-a: #ff876c;
     --focus-b: #ff5f77;
     --short-a: #3dd6b8;
@@ -23,6 +23,19 @@
     --spotify-dark-2: #181818;
     --spotify-dark-3: #232323;
     --trans: 0.3s ease;
+}
+
+[data-theme="light"] {
+    --bg-a: #e9f0ff;
+    --bg-b: #e3e6fa;
+    --bg-c: #eddcf7;
+    --text-main: #202846;
+    --text-soft: #5f6f98;
+    --card-bg: #e8edf9;
+    --card-bg-soft: #f0f4fc;
+    --outer-shadow: 8px 8px 16px rgba(131, 150, 191, 0.45);
+    --highlight-shadow: -4px -4px 10px rgba(255, 255, 255, 0.95);
+    --inset-shadow: inset 2px 2px 8px rgba(137, 158, 199, 0.35), inset -2px -2px 6px rgba(255, 255, 255, 0.95);
 }
 
 * {
@@ -120,7 +133,7 @@ body.focus-fullscreen::before {
     content: "";
     position: fixed;
     inset: 0;
-    background: radial-gradient(circle at center, rgba(131, 150, 191, 0.45), rgba(71, 95, 148, 0.85));
+    background: radial-gradient(circle at center, rgba(255, 255, 255, 0.06), rgba(2, 5, 17, 0.7));
     z-index: 0;
 }
 
@@ -358,6 +371,10 @@ textarea {
 }
 
 .progress-ring__circle-bg {
+    color: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="light"] .progress-ring__circle-bg {
     color: rgba(37, 50, 82, 0.17);
 }
 

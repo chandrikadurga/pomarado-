@@ -1166,7 +1166,7 @@
             dom.longBreakDurationInput.value = String(appState.settings.longBreakMinutes);
             dom.sessionsCountInput.value = String(appState.settings.sessionsBeforeLong);
             dom.soundToggleInput.checked = appState.settings.soundEnabled;
-            // Theme setting toggle removed
+            dom.themeSettingToggle.checked = appState.settings.theme === "light";
             dom.alarmSoundSelect.value = appState.settings.alarmSound;
         }
 
@@ -1291,7 +1291,11 @@
         }
 
         function applyTheme(theme) {
-            // Theme is purely light mode now, logic removed.
+            const normalized = theme === "light" ? "light" : "dark";
+            document.documentElement.dataset.theme = normalized;
+            appState.settings.theme = normalized;
+            dom.themeToggle.textContent = normalized === "dark" ? "Light Mode" : "Dark Mode";
+            StorageModule.saveSettings(appState.settings);
         }
 
         return {
@@ -1579,7 +1583,7 @@
             appState.settings.longBreakMinutes = normalizeNumberInput(dom.longBreakDurationInput, 1, 120, appState.settings.longBreakMinutes);
             appState.settings.sessionsBeforeLong = normalizeNumberInput(dom.sessionsCountInput, 1, 12, appState.settings.sessionsBeforeLong);
             appState.settings.soundEnabled = dom.soundToggleInput.checked;
-            appState.settings.theme = "light";
+            appState.settings.theme = dom.themeSettingToggle.checked ? "light" : "dark";
             appState.settings.alarmSound = ["bell", "chime", "buzzer"].includes(dom.alarmSoundSelect.value)
                 ? dom.alarmSoundSelect.value
                 : appState.settings.alarmSound;
@@ -1623,6 +1627,11 @@
             });
         });
 
+        dom.themeToggle.addEventListener("click", function () {
+            const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+            UIModule.applyTheme(nextTheme);
+            UIModule.renderSettingsForm();
+        });
 
         dom.fullscreenBtn.addEventListener("click", function () {
             appState.isFocusFullscreen = !appState.isFocusFullscreen;
