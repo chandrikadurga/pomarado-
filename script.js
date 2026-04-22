@@ -8,7 +8,7 @@
         sessionsBeforeLong: 4,
         soundEnabled: true,
         alarmSound: "bell",
-        theme: "dark"
+        theme: "light"
     };
 
     const MODE_LABELS = {
@@ -73,7 +73,7 @@
                 alarmSound: ["bell", "chime", "buzzer"].includes(saved.alarmSound)
                     ? saved.alarmSound
                     : DEFAULT_SETTINGS.alarmSound,
-                theme: saved.theme === "light" ? "light" : "dark"
+                theme: "light"
             };
         }
 
@@ -198,7 +198,6 @@
         loginBtn: document.getElementById("login-btn"),
         signupBtn: document.getElementById("signup-btn"),
         logoutBtn: document.getElementById("logout-btn"),
-        themeToggle: document.getElementById("theme-toggle"),
         fullscreenBtn: document.getElementById("fullscreen-btn"),
         timerPanel: document.querySelector(".timer-panel"),
 
@@ -222,7 +221,6 @@
         longBreakDurationInput: document.getElementById("long-break-duration"),
         sessionsCountInput: document.getElementById("sessions-count"),
         soundToggleInput: document.getElementById("sound-toggle"),
-        themeSettingToggle: document.getElementById("theme-setting-toggle"),
         alarmSoundSelect: document.getElementById("alarm-sound"),
         saveSettingsBtn: document.getElementById("save-settings-btn"),
         settingsStatus: document.getElementById("settings-status"),
@@ -1583,13 +1581,13 @@
             appState.settings.longBreakMinutes = normalizeNumberInput(dom.longBreakDurationInput, 1, 120, appState.settings.longBreakMinutes);
             appState.settings.sessionsBeforeLong = normalizeNumberInput(dom.sessionsCountInput, 1, 12, appState.settings.sessionsBeforeLong);
             appState.settings.soundEnabled = dom.soundToggleInput.checked;
-            appState.settings.theme = dom.themeSettingToggle.checked ? "light" : "dark";
+            appState.settings.theme = "light";
             appState.settings.alarmSound = ["bell", "chime", "buzzer"].includes(dom.alarmSoundSelect.value)
                 ? dom.alarmSoundSelect.value
                 : appState.settings.alarmSound;
 
             StorageModule.saveSettings(appState.settings);
-            UIModule.applyTheme(appState.settings.theme);
+            UIModule.applyTheme("light");
             TimerModule.syncWithUpdatedSettings();
             UIModule.renderSettingsForm();
             UIModule.renderTimer(TimerModule.getState());
@@ -1627,11 +1625,7 @@
             });
         });
 
-        dom.themeToggle.addEventListener("click", function () {
-            const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-            UIModule.applyTheme(nextTheme);
-            UIModule.renderSettingsForm();
-        });
+        /* theme toggle removed */
 
         dom.fullscreenBtn.addEventListener("click", function () {
             appState.isFocusFullscreen = !appState.isFocusFullscreen;
@@ -1669,12 +1663,7 @@
             setSettingsStatus("Sound setting saved", false);
         });
 
-        dom.themeSettingToggle.addEventListener("change", function () {
-            const selectedTheme = dom.themeSettingToggle.checked ? "light" : "dark";
-            UIModule.applyTheme(selectedTheme);
-            UIModule.renderSettingsForm();
-            setSettingsStatus("Theme setting saved", false);
-        });
+        /* theme setting removed */
 
         dom.alarmSoundSelect.addEventListener("change", function () {
             appState.settings.alarmSound = ["bell", "chime", "buzzer"].includes(dom.alarmSoundSelect.value)
