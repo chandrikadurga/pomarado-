@@ -441,7 +441,9 @@
         },
         saveProject: async function(userId, projectData) {
             const payload = { user_id: userId, ...projectData };
-            const { error } = await client.from("projects").upsert(payload, { onConflict: "id" });
+            const { error } = payload.id 
+                ? await client.from("projects").update(payload).eq("id", payload.id)
+                : await client.from("projects").insert(payload);
             if (error) console.error("saveProject error:", error);
         },
         deleteProject: async function(projectId) {
@@ -457,7 +459,9 @@
         },
         saveMilestone: async function(userId, milestoneData) {
             const payload = { user_id: userId, ...milestoneData };
-            const { error } = await client.from("milestones").upsert(payload, { onConflict: "id" });
+            const { error } = payload.id 
+                ? await client.from("milestones").update(payload).eq("id", payload.id)
+                : await client.from("milestones").insert(payload);
             if (error) console.error("saveMilestone error:", error);
         },
 
@@ -469,7 +473,9 @@
         },
         saveSubject: async function(userId, subjectData) {
             const payload = { user_id: userId, ...subjectData };
-            const { error } = await client.from("subjects").upsert(payload, { onConflict: "id" });
+            const { error } = payload.id 
+                ? await client.from("subjects").update(payload).eq("id", payload.id)
+                : await client.from("subjects").insert(payload);
             if (error) console.error("saveSubject error:", error);
         },
         deleteSubject: async function(subjectId) {
