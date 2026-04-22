@@ -417,6 +417,81 @@
         },
         saveTasks: function (userId, tasks) {
             return replaceTasks(userId, tasks);
+        },
+        
+        // --- PROFILES ---
+        fetchProfile: async function(userId) {
+            const { data, error } = await client.from("profiles").select("*").eq("id", userId).single();
+            if (error && error.code !== "PGRST116") {
+                console.error("fetchProfile error:", error);
+            }
+            return data;
+        },
+        saveProfile: async function(userId, profileData) {
+            const payload = { id: userId, ...profileData };
+            const { error } = await client.from("profiles").upsert(payload, { onConflict: "id" });
+            if (error) console.error("saveProfile error:", error);
+        },
+
+        // --- PROJECTS ---
+        fetchProjects: async function(userId) {
+            const { data, error } = await client.from("projects").select("*").eq("user_id", userId);
+            if (error) console.error("fetchProjects error:", error);
+            return data || [];
+        },
+        saveProject: async function(userId, projectData) {
+            const payload = { user_id: userId, ...projectData };
+            const { error } = await client.from("projects").upsert(payload, { onConflict: "id" });
+            if (error) console.error("saveProject error:", error);
+        },
+        deleteProject: async function(projectId) {
+            const { error } = await client.from("projects").delete().eq("id", projectId);
+            if (error) console.error("deleteProject error:", error);
+        },
+
+        // --- MILESTONES ---
+        fetchMilestones: async function(projectId) {
+            const { data, error } = await client.from("milestones").select("*").eq("project_id", projectId);
+            if (error) console.error("fetchMilestones error:", error);
+            return data || [];
+        },
+        saveMilestone: async function(userId, milestoneData) {
+            const payload = { user_id: userId, ...milestoneData };
+            const { error } = await client.from("milestones").upsert(payload, { onConflict: "id" });
+            if (error) console.error("saveMilestone error:", error);
+        },
+
+        // --- SUBJECTS ---
+        fetchSubjects: async function(userId) {
+            const { data, error } = await client.from("subjects").select("*").eq("user_id", userId);
+            if (error) console.error("fetchSubjects error:", error);
+            return data || [];
+        },
+        saveSubject: async function(userId, subjectData) {
+            const payload = { user_id: userId, ...subjectData };
+            const { error } = await client.from("subjects").upsert(payload, { onConflict: "id" });
+            if (error) console.error("saveSubject error:", error);
+        },
+        deleteSubject: async function(subjectId) {
+            const { error } = await client.from("subjects").delete().eq("id", subjectId);
+            if (error) console.error("deleteSubject error:", error);
+        },
+
+        // --- HEALTH LOGS ---
+        fetchHealthLog: async function(userId, dateStr) {
+            const { data, error } = await client.from("health_logs").select("*").eq("user_id", userId).eq("date", dateStr).single();
+            if (error && error.code !== "PGRST116") console.error("fetchHealthLog error:", error);
+            return data;
+        },
+        saveHealthLog: async function(userId, dateStr, logData) {
+            // First fetch to get ID if exists
+            const existing = await this.fetchHealthLog(userId, dateStr);
+            const payload = { user_id: userId, date: dateStr, ...logData };
+            if (existing) {
+                payload.id = existing.id;
+            }
+            const { error } = await client.from("health_logs").upsert(payload, { onConflict: "id" });
+            if (error) console.error("saveHealthLog error:", error);
         }
     };
 

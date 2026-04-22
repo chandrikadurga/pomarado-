@@ -32,9 +32,14 @@
     <div id="app-shell" class="app-shell hidden">
         <header class="topbar glass-card">
             <div>
-                <p class="eyebrow">Focus Console</p>
-                <h1>Productivity Dashboard</h1>
+                <p class="eyebrow">Productivity OS</p>
+                <h1>Dashboard</h1>
             </div>
+            <nav class="topbar-nav">
+                <button id="nav-dashboard" class="ghost-btn active" type="button">Dashboard</button>
+                <button id="nav-profile" class="ghost-btn" type="button">Profile</button>
+                <button id="nav-health" class="ghost-btn" type="button">Health</button>
+            </nav>
             <div class="topbar-actions">
                 <button id="logout-btn" class="ghost-btn" type="button">Logout</button>
                 <button id="theme-toggle" class="ghost-btn" type="button">Light Mode</button>
@@ -42,7 +47,7 @@
             </div>
         </header>
 
-        <main class="dashboard-grid">
+        <main id="view-dashboard" class="dashboard-grid view-section active">
             <aside class="left-column">
                 <section class="glass-card panel calendar-panel">
                     <div class="panel-head">
@@ -241,6 +246,86 @@
                 </div>
             </section>
         </main>
+
+        <!-- PROFILE VIEW -->
+        <main id="view-profile" class="profile-grid view-section hidden">
+            <!-- Basic Info -->
+            <section class="glass-card panel">
+                <div class="panel-head compact">
+                    <h2>Profile</h2>
+                </div>
+                <div class="settings-grid">
+                    <label for="profile-username">Username</label>
+                    <input type="text" id="profile-username" placeholder="Your name">
+                    
+                    <label for="profile-college">Education / College</label>
+                    <input type="text" id="profile-college" placeholder="University Name">
+
+                    <label for="profile-bio">Bio</label>
+                    <textarea id="profile-bio" rows="3" placeholder="Tell us about yourself"></textarea>
+                </div>
+                <div class="settings-actions">
+                    <button id="save-profile-btn" class="primary-btn" type="button">Save Profile</button>
+                </div>
+                <p id="profile-status" class="settings-status muted"></p>
+            </section>
+
+            <!-- Projects -->
+            <section class="glass-card panel">
+                <div class="panel-head compact notes-head">
+                    <h2>Projects & Startups</h2>
+                    <button id="add-project-btn" class="ghost-btn" type="button">Add Project</button>
+                </div>
+                <div id="projects-list" class="tracker-list"></div>
+            </section>
+
+            <!-- Subjects -->
+            <section class="glass-card panel">
+                <div class="panel-head compact notes-head">
+                    <h2>Academic Subjects</h2>
+                    <button id="add-subject-btn" class="ghost-btn" type="button">Add Subject</button>
+                </div>
+                <div id="subjects-list" class="tracker-list"></div>
+            </section>
+        </main>
+
+        <!-- HEALTH VIEW -->
+        <main id="view-health" class="health-grid view-section hidden">
+            <!-- Water Tracker -->
+            <section class="glass-card panel text-center">
+                <div class="panel-head compact">
+                    <h2>💧 Water Tracker</h2>
+                </div>
+                <div class="health-stat">
+                    <h1 class="time-text"><span id="water-count">0</span>/8</h1>
+                    <p class="muted">Glasses today</p>
+                </div>
+                <div class="progress-wrap"><div class="progress-bar" id="water-progress"></div></div>
+                <div class="controls">
+                    <button id="add-water-btn" class="primary-btn">+1 Glass</button>
+                    <button id="reset-water-btn" class="ghost-btn">Reset</button>
+                </div>
+            </section>
+
+            <!-- Sleep Tracker -->
+            <section class="glass-card panel text-center">
+                <div class="panel-head compact">
+                    <h2>😴 Sleep Tracker</h2>
+                </div>
+                <div class="settings-grid">
+                    <label for="sleep-hours">Hours Slept Last Night</label>
+                    <input type="number" id="sleep-hours" min="0" max="24" step="0.5" value="0">
+                </div>
+                <div class="health-stat">
+                    <h1 class="time-text"><span id="sleep-display">0</span>h</h1>
+                    <p class="muted">Goal: 8h</p>
+                </div>
+                <div class="progress-wrap"><div class="progress-bar" id="sleep-progress"></div></div>
+                <div class="controls">
+                    <button id="save-sleep-btn" class="primary-btn">Save Log</button>
+                </div>
+            </section>
+        </main>
     </div>
 
     <div id="task-complete-modal" class="task-complete-modal hidden" role="dialog" aria-modal="false" aria-labelledby="task-complete-title">
@@ -262,5 +347,10 @@
     <script src="auth.js"></script>
     <script src="ui.js"></script>
     <script src="script.js"></script>
+    <script src="profile.js"></script>
+    <script src="projects.js"></script>
+    <script src="subjects.js"></script>
+    <script src="health.js"></script>
+    <script src="app-nav.js"></script>
 </body>
 </html>

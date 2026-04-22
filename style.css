@@ -1193,3 +1193,76 @@ textarea {
         width: calc(100vw - 20px);
     }
 }
+
+/* MULTI-PAGE SYSTEM STYLES */
+.topbar-nav {
+    display: flex;
+    gap: 10px;
+}
+.view-section {
+    display: none;
+}
+.view-section.active {
+    display: grid;
+}
+
+/* PROFILE GRID */
+.profile-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+    margin-top: 10px;
+}
+@media(max-width: 860px) {
+    .profile-grid {
+        grid-template-columns: 1fr;
+    }
+}
+.tracker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+.tracker-card {
+    background: var(--card-bg-soft);
+    padding: 14px;
+    border-radius: var(--inner-radius);
+    box-shadow: var(--inset-shadow);
+}
+.tracker-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+/* HEALTH GRID */
+.health-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+    margin-top: 10px;
+}
+@media(max-width: 860px) {
+    .health-grid {
+        grid-template-columns: 1fr;
+    }
+}
+.text-center { text-align: center; }
+.health-stat h1 { margin-bottom: 0; }
+.progress-wrap {
+    width: 100%;
+    height: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    margin: 15px 0;
+    overflow: hidden;
+}
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #6db5ff, #3dd6b8);
+    transition: width 0.3s ease;
+}
+
